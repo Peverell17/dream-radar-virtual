@@ -428,6 +428,21 @@ body {
   margin: 16px 0;
 }
 
+.dsv-badge {
+  background: rgba(0, 212, 255, 0.08);
+  border: 1px solid var(--cyan-radar-dim);
+  color: var(--cyan-radar);
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  margin: 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: 0.5px;
+}
+
 /* ============================================
    Footer
    ============================================ */
@@ -532,6 +547,7 @@ window.TRANSLATIONS = {
     'trainer.playtime': 'Tempo de Jogo',
     'trainer.money': 'Dinheiro',
     'trainer.note': 'Pokémon capturados serão gerados com idioma e dados de treinador consistentes com seu save.',
+    'trainer.dsvDetected': 'Arquivo .dsv detectado (emulador DraStic/DeSmuMe). Footer ignorado automaticamente.',
     'trainer.changeFile': 'Trocar arquivo',
     'trainer.continue': 'Continuar',
 
@@ -593,6 +609,7 @@ window.TRANSLATIONS = {
     'trainer.playtime': 'Play Time',
     'trainer.money': 'Money',
     'trainer.note': 'Captured Pokémon will be generated with language and trainer data consistent with your save.',
+    'trainer.dsvDetected': '.dsv file detected (DraStic/DeSmuMe emulator). Footer auto-stripped.',
     'trainer.changeFile': 'Change file',
     'trainer.continue': 'Continue',
 
@@ -924,19 +941,35 @@ window.TRANSLATIONS = {
 // Dream Radar Virtual - Save Parser (Gen 5)
 //
 // Sprint 1: APENAS LEITURA.
-// Detecta BW vs B2W2, lê dados do Trainer Data block e retorna objeto limpo.
+//
+// Suporta dois formatos de save:
+//   1. .sav puro (524288 bytes / 512 KB) — cartucho ou export cru
+//   2. .dsv (524288 + footer DeSmuMe) — DraStic, DeSmuMe, etc.
+//
+// O footer DeSmuMe é documentado em:
+//   github.com/TASEmulators/desmume/blob/master/desmume/doc/dsv.txt
+//
+// Últimos 16 bytes do arquivo: string ASCII "|-DESMUME SAVE-|"
+// Antes dela (40 bytes totais de footer):
+//   u32 actually_written_size
+//   u32 padded_size          <-- usamos esse
+//   u32 save_type
+//   u32 address_size
+//   u32 save_size
+//   u32 version_number
+//   char cookie[16]
 //
 // API:
 //   const result = window.SavParser.parseSave(uint8Array);
-//   if (result.success) {
-//     console.log(result.data);  // dados do treinador
-//   } else {
-//     console.error(result.error);  // chave de tradução do erro
-//   }
+//   if (result.success) { ... result.data ... }
+//   else { ... result.error ... }
 // ============================================
 
 (function () {
   const { SAV_SIZE, GAME_VERSION_IDS, LANGUAGE_IDS, BW, B2W2 } = window.SavOffsets;
+
+  const DESMUME_COOKIE = '|-DESMUME SAVE-|';  // 16 bytes ASCII
+  const DESMUME_FOOTER_SIZE = 40;             // 6 × u32 + 16 byte cookie
 
   // ------------------------------------------
   // Helpers de leitura little-endian
@@ -955,28 +988,105 @@ window.TRANSLATIONS = {
   }
 
   // ------------------------------------------
-  // 1. Valida tamanho do arquivo
+  // Detecta footer DeSmuMe/DSV e retorna o tamanho do save "limpo".
+  // Retorna null se não houver footer detectável.
   // ------------------------------------------
-  function validateSize(buffer) {
-    if (!buffer) return { ok: false, error: 'error.invalidFile' };
-    if (buffer.length !== SAV_SIZE) {
-      return { ok: false, error: 'error.wrongSize' };
+  function detectDesmumeFooter(buffer) {
+    if (buffer.length < DESMUME_FOOTER_SIZE) return null;
+
+    // Lê os últimos 16 bytes como ASCII e compara com o cookie
+    const cookieStart = buffer.length - 16;
+    let cookieText = '';
+    for (let i = 0; i < 16; i++) {
+      cookieText += String.fromCharCode(buffer[cookieStart + i]);
     }
-    return { ok: true };
+
+    if (cookieText !== DESMUME_COOKIE) {
+      return null;  // não é DSV
+    }
+
+    // Cookie confirmado. Lê os campos do footer.
+    // Footer começa em (length - 40). Layout:
+    //   offset 0:  u32 actually_written_size
+    //   offset 4:  u32 padded_size      <-- onde o save "limpo" termina
+    //   offset 8:  u32 save_type
+    //   offset 12: u32 address_size
+    //   offset 16: u32 save_size
+    //   offset 20: u32 version_number
+    //   offset 24: char cookie[16]
+    const footerStart = buffer.length - DESMUME_FOOTER_SIZE;
+    const actuallyWrittenSize = readU32LE(buffer, footerStart + 0);
+    const paddedSize = readU32LE(buffer, footerStart + 4);
+
+    return {
+      detected: true,
+      actuallyWrittenSize,
+      paddedSize,
+      totalFileSize: buffer.length,
+      footerOverhead: buffer.length - paddedSize
+    };
   }
 
   // ------------------------------------------
-  // 2. Detecta versão do jogo
-  //
-  // Lê o byte GAME_VERSION no Trainer Data e valida contra tabela conhecida.
-  // Se não bater, provavelmente não é save Gen 5 — rejeita.
+  // Normaliza o buffer: se for DSV, retorna só os primeiros paddedSize bytes.
+  // Se for sav puro, retorna o buffer original.
+  // ------------------------------------------
+  function normalizeBuffer(buffer) {
+    // Caso 1: tamanho exato de save Gen 5 — não há footer, usa direto
+    if (buffer.length === SAV_SIZE) {
+      return { buffer, format: 'sav', footer: null };
+    }
+
+    // Caso 2: tem footer DeSmuMe?
+    const footer = detectDesmumeFooter(buffer);
+    if (footer && footer.paddedSize === SAV_SIZE) {
+      // Usa só os primeiros SAV_SIZE bytes
+      const trimmed = buffer.slice(0, SAV_SIZE);
+      return { buffer: trimmed, format: 'dsv', footer };
+    }
+
+    // Caso 3: tem footer mas paddedSize não é de Gen 5 (ex: save de outro jogo DS)
+    if (footer) {
+      return { buffer: null, format: 'dsv-wrong-game', footer };
+    }
+
+    // Caso 4: tamanho errado e sem footer
+    return { buffer: null, format: 'unknown', footer: null };
+  }
+
+  // ------------------------------------------
+  // Valida tamanho e formato
+  // ------------------------------------------
+  function validateAndNormalize(buffer) {
+    if (!buffer) return { ok: false, error: 'error.invalidFile' };
+
+    const normalized = normalizeBuffer(buffer);
+
+    if (!normalized.buffer) {
+      // Footer detectado mas save do tamanho errado = jogo diferente de Gen 5
+      if (normalized.format === 'dsv-wrong-game') {
+        return { ok: false, error: 'error.notGen5' };
+      }
+      // Sem footer e tamanho errado
+      return { ok: false, error: 'error.wrongSize' };
+    }
+
+    return {
+      ok: true,
+      buffer: normalized.buffer,
+      format: normalized.format,
+      footer: normalized.footer
+    };
+  }
+
+  // ------------------------------------------
+  // Detecta versão do jogo
   // ------------------------------------------
   function detectGameVersion(buffer) {
-    // Offset absoluto do byte de versão
     const versionOffset = BW.TRAINER1 + BW.GAME_VERSION;
     const rawVersion = buffer[versionOffset];
-
     const info = GAME_VERSION_IDS[rawVersion];
+
     if (!info) {
       return { ok: false };
     }
@@ -991,48 +1101,47 @@ window.TRANSLATIONS = {
   }
 
   // ------------------------------------------
-  // 3. Parser principal
+  // Parser principal
   // ------------------------------------------
   function parseSave(buffer) {
-    // Passo 1: tamanho
-    const sizeCheck = validateSize(buffer);
-    if (!sizeCheck.ok) {
-      return { success: false, error: sizeCheck.error };
+    // Passo 1: valida e normaliza (strip footer se for DSV)
+    const validation = validateAndNormalize(buffer);
+    if (!validation.ok) {
+      return { success: false, error: validation.error };
     }
 
+    const savBuffer = validation.buffer;
+    const sourceFormat = validation.format;  // 'sav' ou 'dsv'
+
     // Passo 2: versão
-    const versionCheck = detectGameVersion(buffer);
+    const versionCheck = detectGameVersion(savBuffer);
     if (!versionCheck.ok) {
       return { success: false, error: 'error.notGen5' };
     }
 
     // Passo 3: escolhe tabela de offsets
     const OFF = versionCheck.isB2W2 ? B2W2 : BW;
-
-    // Passo 4: leitura do Trainer Data
     const t1 = OFF.TRAINER1;
 
+    // Passo 4: leitura do Trainer Data
     const otName = window.Gen5Decoder.decodeString(
-      buffer,
+      savBuffer,
       t1 + OFF.OT_NAME,
       OFF.OT_NAME_MAX_BYTES
     );
 
-    const tid = readU16LE(buffer, t1 + OFF.TID);
-    const sid = readU16LE(buffer, t1 + OFF.SID);
-    const language = buffer[t1 + OFF.LANGUAGE];
-    const gameVersion = buffer[t1 + OFF.GAME_VERSION];
-    const gender = buffer[t1 + OFF.GENDER];
+    const tid = readU16LE(savBuffer, t1 + OFF.TID);
+    const sid = readU16LE(savBuffer, t1 + OFF.SID);
+    const language = savBuffer[t1 + OFF.LANGUAGE];
+    const gameVersion = savBuffer[t1 + OFF.GAME_VERSION];
+    const gender = savBuffer[t1 + OFF.GENDER];
 
-    // Playtime
-    const playHours = readU16LE(buffer, t1 + OFF.PLAYTIME_HOURS);
-    const playMinutes = buffer[t1 + OFF.PLAYTIME_MINUTES];
-    const playSeconds = buffer[t1 + OFF.PLAYTIME_SECONDS];
+    const playHours = readU16LE(savBuffer, t1 + OFF.PLAYTIME_HOURS);
+    const playMinutes = savBuffer[t1 + OFF.PLAYTIME_MINUTES];
+    const playSeconds = savBuffer[t1 + OFF.PLAYTIME_SECONDS];
 
-    // Money (fica em Trainer2, offset diferente por jogo)
-    const money = readU32LE(buffer, OFF.TRAINER2);
+    const money = readU32LE(savBuffer, OFF.TRAINER2);
 
-    // Monta objeto de resultado
     const versionInfo = versionCheck.info;
     const languageInfo = LANGUAGE_IDS[language] || null;
 
@@ -1041,9 +1150,9 @@ window.TRANSLATIONS = {
       data: {
         // Jogo
         gameVersionRaw: gameVersion,
-        gameCode: versionInfo.code,           // 'B2', 'W2', 'B', 'W'
-        gameKey: versionInfo.key,             // chave i18n
-        gameGroup: versionInfo.group,         // 'BW' ou 'B2W2'
+        gameCode: versionInfo.code,
+        gameKey: versionInfo.key,
+        gameGroup: versionInfo.group,
         isB2W2: versionCheck.isB2W2,
         isBW: versionCheck.isBW,
 
@@ -1051,8 +1160,8 @@ window.TRANSLATIONS = {
         otName: otName || '—',
         tid,
         sid,
-        gender,                                // 0 = M, 1 = F
-        language,                              // ID numérico
+        gender,
+        language,
         languageCode: languageInfo?.code ?? 'UNK',
         languageKey: languageInfo?.key ?? 'saveLang.unknown',
 
@@ -1067,13 +1176,15 @@ window.TRANSLATIONS = {
         money,
 
         // Meta
-        bufferSize: buffer.length
+        sourceFormat,                         // 'sav' ou 'dsv'
+        originalFileSize: buffer.length,      // tamanho do arquivo enviado
+        savBufferSize: savBuffer.length       // sempre 524288 após normalização
       }
     };
   }
 
   // ------------------------------------------
-  // Helpers de formatação pra UI
+  // Formatação
   // ------------------------------------------
   function formatPlaytime(p) {
     if (!p) return '--:--';
@@ -1083,7 +1194,6 @@ window.TRANSLATIONS = {
   }
 
   function formatMoney(money) {
-    // Formato com separador de milhares, independente de locale
     return money.toLocaleString('en-US');
   }
 
@@ -1093,10 +1203,10 @@ window.TRANSLATIONS = {
 
   window.SavParser = {
     parseSave,
+    detectDesmumeFooter,
     formatPlaytime,
     formatMoney,
     formatTID,
-    // expostos pra uso em outros módulos futuros
     readU16LE,
     readU32LE
   };
@@ -1281,6 +1391,9 @@ function TrainerInfo({ saveInfo, onReset }) {
   // Se o save é BW (não B2W2), mostrar aviso
   const showBwWarning = data.isBW;
 
+  // Se o save veio de um DSV (emulador), mostrar badge informativo
+  const showDsvBadge = data.sourceFormat === 'dsv';
+
   return (
     <div>
       <div className="trainer-panel">
@@ -1338,6 +1451,12 @@ function TrainerInfo({ saveInfo, onReset }) {
           </button>
         </div>
       </div>
+
+      {showDsvBadge && (
+        <div className="dsv-badge">
+          <span>ℹ</span> {t('trainer.dsvDetected')}
+        </div>
+      )}
 
       {showBwWarning && (
         <div className="warning-message" role="alert">
