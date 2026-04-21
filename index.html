@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0a0a1a" />
+  <meta name="description" content="Dream Radar Virtual - Simulador web do Pokemon Dream Radar para Black 2 / White 2" />
+
+  <title>Dream Radar Virtual</title>
+
+  <link rel="icon" type="image/png" href="./icon-192.png" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+
+  <style>
+/* ============================================
+   Dream Radar Virtual - Estilo fiel ao original
+   Paleta: preto espacial, roxo profundo, ciano radar
+   ============================================ */
+
+:root {
+  --bg-deep: #0a0a1a;
+  --bg-panel: #141428;
+  --bg-panel-hover: #1c1c38;
+  --border-purple: #6b2aa5;
+  --border-purple-bright: #a855f7;
+  --cyan-radar: #00d4ff;
+  --cyan-radar-dim: #0891b2;
+  --text-primary: #e0e7ff;
+  --text-secondary: #a5b4fc;
+  --text-dim: #6b7280;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+
+  --shadow-glow-purple: 0 0 20px rgba(168, 85, 247, 0.4);
+  --shadow-glow-cyan: 0 0 20px rgba(0, 212, 255, 0.4);
+
+  --font-mono: 'Courier New', 'Consolas', monospace;
+  --font-ui: 'Segoe UI', 'Roboto', sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+
+  /* fundo animado tipo espaço profundo */
+  background-image:
+    radial-gradient(ellipse at top, rgba(107, 42, 165, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
+    linear-gradient(180deg, #0a0a1a 0%, #050510 100%);
+  background-attachment: fixed;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================
+   Loading inicial
+   ============================================ */
+
+.app-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: 20px;
+  color: var(--cyan-radar);
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid var(--bg-panel);
+  border-top-color: var(--cyan-radar);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   Layout principal
+   ============================================ */
+
+.app-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border-purple);
+  margin-bottom: 30px;
+}
+
+.app-title {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--cyan-radar);
+  text-shadow: var(--shadow-glow-cyan);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.app-title .accent {
+  color: var(--border-purple-bright);
+  text-shadow: var(--shadow-glow-purple);
+}
+
+/* ============================================
+   Seletor de idioma
+   ============================================ */
+
+.language-selector {
+  display: flex;
+  gap: 8px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-purple);
+  border-radius: 6px;
+  padding: 4px;
+}
+
+.language-selector button {
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  padding: 6px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.language-selector button:hover {
+  color: var(--cyan-radar);
+  background: var(--bg-panel-hover);
+}
+
+.language-selector button.active {
+  background: var(--border-purple);
+  color: white;
+  box-shadow: var(--shadow-glow-purple);
+}
+
+/* ============================================
+   Upload screen
+   ============================================ */
+
+.upload-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  padding: 40px 20px;
+}
+
+.upload-hero {
+  text-align: center;
+}
+
+.upload-hero h2 {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  color: var(--cyan-radar);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  margin-bottom: 12px;
+}
+
+.upload-hero p {
+  color: var(--text-secondary);
+  max-width: 500px;
+}
+
+.upload-dropzone {
+  width: 100%;
+  max-width: 500px;
+  min-height: 200px;
+  background: var(--bg-panel);
+  border: 2px dashed var(--border-purple);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 40px 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-dropzone::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, rgba(107, 42, 165, 0.1) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.upload-dropzone:hover,
+.upload-dropzone.drag-over {
+  border-color: var(--cyan-radar);
+  box-shadow: var(--shadow-glow-cyan);
+}
+
+.upload-dropzone:hover::before,
+.upload-dropzone.drag-over::before {
+  opacity: 1;
+}
+
+.upload-icon {
+  font-size: 48px;
+  color: var(--cyan-radar);
+  filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.5));
+}
+
+.upload-text {
+  text-align: center;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+.upload-text .hint {
+  display: block;
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-top: 8px;
+  letter-spacing: 0;
+}
+
+.upload-dropzone input[type="file"] {
+  display: none;
+}
+
+/* ============================================
+   Trainer info panel (pós upload)
+   ============================================ */
+
+.trainer-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-purple);
+  border-radius: 12px;
+  padding: 24px;
+  margin: 20px 0;
+  box-shadow: var(--shadow-glow-purple);
+}
+
+.trainer-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-purple);
+}
+
+.trainer-panel-header .status-icon {
+  color: var(--success);
+  font-size: 20px;
+  text-shadow: 0 0 10px var(--success);
+}
+
+.trainer-panel-header h3 {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--cyan-radar);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.trainer-data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+}
+
+.trainer-data-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trainer-data-item .label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.trainer-data-item .value {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+.trainer-data-item .value.highlight {
+  color: var(--cyan-radar);
+}
+
+.trainer-panel-footer {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-purple);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.trainer-info-note {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* ============================================
+   Botões genéricos
+   ============================================ */
+
+.btn {
+  background: var(--border-purple);
+  color: white;
+  border: 1px solid var(--border-purple-bright);
+  padding: 10px 20px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  background: var(--border-purple-bright);
+  box-shadow: var(--shadow-glow-purple);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-purple);
+}
+
+.btn-ghost:hover {
+  background: var(--bg-panel-hover);
+  color: var(--cyan-radar);
+  border-color: var(--cyan-radar);
+  box-shadow: none;
+}
+
+/* ============================================
+   Mensagens de erro / alerta
+   ============================================ */
+
+.error-message {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--error);
+  color: var(--error);
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  margin: 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.warning-message {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid var(--warning);
+  color: var(--warning);
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin: 16px 0;
+}
+
+/* ============================================
+   Footer
+   ============================================ */
+
+.app-footer {
+  margin-top: auto;
+  padding: 20px 0;
+  text-align: center;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+/* ============================================
+   Responsividade
+   ============================================ */
+
+@media (max-width: 600px) {
+  .app-container {
+    padding: 12px;
+  }
+
+  .app-title {
+    font-size: 18px;
+  }
+
+  .upload-hero h2 {
+    font-size: 16px;
+  }
+
+  .trainer-data-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+  </style>
+
+  <!-- React 18 -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Babel Standalone para JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root">
+    <div class="app-loading">
+      <div class="loading-spinner"></div>
+      <p>Loading Dream Radar...</p>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- i18n + engine (JS puro, sem JSX)                              -->
+  <!-- ============================================================ -->
+  <script>
+// ===== translations.js =====
+// ============================================
+// Dream Radar Virtual - Traduções (Sprint 1)
+// Estrutura: window.TRANSLATIONS[locale][chave]
+// ============================================
+
+window.TRANSLATIONS = {
+  'pt-BR': {
+    // App geral
+    'app.title': 'Dream Radar Virtual',
+    'app.loading': 'Carregando Dream Radar...',
+    'app.footer': 'Dream Radar Virtual • Projeto sem fins lucrativos',
+
+    // Seletor de idioma
+    'lang.pt': 'PT-BR',
+    'lang.en': 'EN',
+
+    // Tela de upload
+    'upload.title': 'Upload do Save',
+    'upload.subtitle': 'Envie seu arquivo .sav de Pokémon Black, White, Black 2 ou White 2 para começar. Nenhum dado é enviado para servidores — tudo processado localmente no seu navegador.',
+    'upload.dropzone': 'Clique ou arraste seu arquivo .sav aqui',
+    'upload.hint': 'Formatos aceitos: .sav / .dsv (512 KB) — BW ou B2W2',
+
+    // Mensagens de erro
+    'error.invalidFile': 'Arquivo inválido. Envie um .sav válido.',
+    'error.wrongSize': 'Tamanho incorreto. Saves de Gen 5 devem ter exatamente 524288 bytes (512 KB). Verifique se o arquivo é de Pokémon Black/White ou Black 2/White 2.',
+    'error.notGen5': 'Este save não parece ser de um jogo de Pokémon da Geração 5 (Black, White, Black 2 ou White 2).',
+    'error.notB2W2': 'O Dream Radar só funciona com saves de Black 2 ou White 2 (não Black/White). Seu save é de uma versão incompatível.',
+    'error.corruptedSave': 'O save parece estar corrompido (checksum inválido).',
+    'error.parseError': 'Erro ao ler o arquivo. Certifique-se de que é um save válido.',
+
+    // Avisos
+    'warning.bwDetected': 'Aviso: detectamos um save de Pokémon Black/White. O Dream Radar original funciona apenas com Black 2/White 2. Você pode continuar visualizando os dados, mas a transferência de Pokémon não será possível (recurso de sprints futuros).',
+
+    // Painel do treinador
+    'trainer.loaded': 'Save carregado com sucesso',
+    'trainer.game': 'Jogo',
+    'trainer.ot': 'Treinador (OT)',
+    'trainer.tid': 'TID',
+    'trainer.sid': 'SID',
+    'trainer.language': 'Idioma',
+    'trainer.gender': 'Gênero',
+    'trainer.gender.male': 'Masculino',
+    'trainer.gender.female': 'Feminino',
+    'trainer.playtime': 'Tempo de Jogo',
+    'trainer.money': 'Dinheiro',
+    'trainer.note': 'Pokémon capturados serão gerados com idioma e dados de treinador consistentes com seu save.',
+    'trainer.changeFile': 'Trocar arquivo',
+    'trainer.continue': 'Continuar',
+
+    // Nomes de jogo
+    'game.black2': 'Pokémon Black 2',
+    'game.white2': 'Pokémon White 2',
+    'game.black': 'Pokémon Black',
+    'game.white': 'Pokémon White',
+    'game.unknown': 'Jogo desconhecido',
+
+    // Nomes de idiomas
+    'saveLang.1': 'Japonês',
+    'saveLang.2': 'Inglês',
+    'saveLang.3': 'Francês',
+    'saveLang.4': 'Italiano',
+    'saveLang.5': 'Alemão',
+    'saveLang.7': 'Espanhol',
+    'saveLang.8': 'Coreano',
+    'saveLang.unknown': 'Desconhecido'
+  },
+
+  'en': {
+    // App geral
+    'app.title': 'Dream Radar Virtual',
+    'app.loading': 'Loading Dream Radar...',
+    'app.footer': 'Dream Radar Virtual • Non-profit project',
+
+    // Seletor de idioma
+    'lang.pt': 'PT-BR',
+    'lang.en': 'EN',
+
+    // Tela de upload
+    'upload.title': 'Save Upload',
+    'upload.subtitle': 'Upload your Pokémon Black, White, Black 2 or White 2 .sav file to begin. No data is sent to servers — everything is processed locally in your browser.',
+    'upload.dropzone': 'Click or drag your .sav file here',
+    'upload.hint': 'Accepted: .sav / .dsv (512 KB) — BW or B2W2',
+
+    // Mensagens de erro
+    'error.invalidFile': 'Invalid file. Please upload a valid .sav.',
+    'error.wrongSize': 'Incorrect size. Gen 5 saves must be exactly 524288 bytes (512 KB). Verify the file is from Pokémon Black/White or Black 2/White 2.',
+    'error.notGen5': 'This does not appear to be a Pokémon Generation 5 save (Black, White, Black 2 or White 2).',
+    'error.notB2W2': 'Dream Radar only works with Black 2 or White 2 saves (not Black/White). Your save is from an incompatible version.',
+    'error.corruptedSave': 'This save appears to be corrupted (checksum mismatch).',
+    'error.parseError': 'Error reading file. Make sure it is a valid save.',
+
+    // Avisos
+    'warning.bwDetected': 'Warning: we detected a Pokémon Black/White save. The original Dream Radar only works with Black 2/White 2. You can continue to view the data, but Pokémon transfer will not be possible (feature of future sprints).',
+
+    // Painel do treinador
+    'trainer.loaded': 'Save loaded successfully',
+    'trainer.game': 'Game',
+    'trainer.ot': 'Trainer (OT)',
+    'trainer.tid': 'TID',
+    'trainer.sid': 'SID',
+    'trainer.language': 'Language',
+    'trainer.gender': 'Gender',
+    'trainer.gender.male': 'Male',
+    'trainer.gender.female': 'Female',
+    'trainer.playtime': 'Play Time',
+    'trainer.money': 'Money',
+    'trainer.note': 'Captured Pokémon will be generated with language and trainer data consistent with your save.',
+    'trainer.changeFile': 'Change file',
+    'trainer.continue': 'Continue',
+
+    // Nomes de jogo
+    'game.black2': 'Pokémon Black 2',
+    'game.white2': 'Pokémon White 2',
+    'game.black': 'Pokémon Black',
+    'game.white': 'Pokémon White',
+    'game.unknown': 'Unknown game',
+
+    // Nomes de idiomas
+    'saveLang.1': 'Japanese',
+    'saveLang.2': 'English',
+    'saveLang.3': 'French',
+    'saveLang.4': 'Italian',
+    'saveLang.5': 'German',
+    'saveLang.7': 'Spanish',
+    'saveLang.8': 'Korean',
+    'saveLang.unknown': 'Unknown'
+  }
+};
+
+// ===== i18n.js =====
+// ============================================
+// Dream Radar Virtual - i18n engine (leve, ~50 linhas)
+// Dependencias: window.TRANSLATIONS (carregado antes)
+// Expõe: window.i18n { t, setLocale, getLocale, subscribe }
+// Hook React: window.useT()
+// ============================================
+
+(function () {
+  const STORAGE_KEY = 'dream-radar-locale';
+  const DEFAULT_LOCALE = 'en';
+  const SUPPORTED = ['pt-BR', 'en'];
+
+  function detectInitialLocale() {
+    // 1. Escolha salva tem prioridade
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved && SUPPORTED.includes(saved)) return saved;
+    } catch (e) {
+      // localStorage pode falhar em modo privado, tudo bem
+    }
+
+    // 2. Detectar idioma do navegador
+    const navLang = (navigator.language || navigator.userLanguage || '').toLowerCase();
+    if (navLang.startsWith('pt')) return 'pt-BR';
+
+    // 3. Default
+    return DEFAULT_LOCALE;
+  }
+
+  let currentLocale = detectInitialLocale();
+  const listeners = new Set();
+
+  function t(key, params) {
+    const table = window.TRANSLATIONS?.[currentLocale];
+    let value = table?.[key];
+
+    // Fallback pro inglês se a chave nao existir no idioma atual
+    if (value === undefined && currentLocale !== 'en') {
+      value = window.TRANSLATIONS?.['en']?.[key];
+    }
+
+    // Fallback final: retorna a propria chave (facilita debug)
+    if (value === undefined) return key;
+
+    // Interpolação simples {{param}}
+    if (params && typeof value === 'string') {
+      return value.replace(/\{\{(\w+)\}\}/g, (_, p) => {
+        return params[p] !== undefined ? String(params[p]) : `{{${p}}}`;
+      });
+    }
+
+    return value;
+  }
+
+  function setLocale(locale) {
+    if (!SUPPORTED.includes(locale)) {
+      console.warn(`[i18n] Locale "${locale}" não suportado.`);
+      return;
+    }
+    currentLocale = locale;
+    try {
+      localStorage.setItem(STORAGE_KEY, locale);
+    } catch (e) { /* ignore */ }
+
+    // Atualiza atributo lang do HTML (acessibilidade + SEO)
+    document.documentElement.lang = locale === 'pt-BR' ? 'pt-br' : 'en';
+
+    listeners.forEach((fn) => fn(locale));
+  }
+
+  function getLocale() {
+    return currentLocale;
+  }
+
+  function subscribe(fn) {
+    listeners.add(fn);
+    return () => listeners.delete(fn);
+  }
+
+  window.i18n = { t, setLocale, getLocale, subscribe, SUPPORTED };
+
+  // Hook React que re-renderiza quando o idioma muda
+  window.useT = function useT() {
+    const [, forceUpdate] = React.useState(0);
+    React.useEffect(() => {
+      const unsub = subscribe(() => forceUpdate((n) => n + 1));
+      return unsub;
+    }, []);
+    return { t, setLocale, locale: currentLocale };
+  };
+
+  // Inicializa o atributo lang na carga
+  document.documentElement.lang = currentLocale === 'pt-BR' ? 'pt-br' : 'en';
+})();
+
+// ===== gen5-decoder.js =====
+// ============================================
+// Dream Radar Virtual - Gen 5 String Decoder
+//
+// CORREÇÃO IMPORTANTE (descoberta analisando PKHeX SAV5):
+// Strings no SAVE de Gen 5 (OT name, box names, etc.) são armazenadas como
+// **UTF-16 Little-Endian padrão**, terminadas com 0xFFFF.
+//
+// O charset Gen 5 proprietário existe, sim, mas é usado em outros contextos
+// (como strings dentro de mensagens de batalha na ROM). No save, os nomes
+// do treinador e das caixas usam UTF-16LE — o navegador decodifica nativamente
+// via TextDecoder('utf-16le').
+//
+// Referência: PKHeX SAV5 - "Encoding.Unicode.GetString(Data, Trainer1 + 0x4, 16)"
+// (Encoding.Unicode no .NET = UTF-16 LE)
+//
+// Terminador: 0xFFFF (em little-endian: bytes FF FF)
+// Tamanho máximo de OT em Gen 5: 7 caracteres + terminador = 16 bytes (8 chars de 2 bytes)
+// ============================================
+
+(function () {
+  // TextDecoder é nativo e super rápido em todos os navegadores modernos.
+  // Criamos uma instância reutilizável.
+  const utf16Decoder = new TextDecoder('utf-16le');
+
+  /**
+   * Decodifica uma string UTF-16LE terminada em 0xFFFF.
+   *
+   * @param {Uint8Array} buffer - buffer do save
+   * @param {number} offset - posição inicial da string
+   * @param {number} maxBytes - tamanho máximo do campo em bytes (16 pro OT em Gen 5)
+   * @returns {string} string decodificada (sem o terminador)
+   */
+  function decodeString(buffer, offset, maxBytes) {
+    // Localiza o terminador 0xFFFF (ou 0x0000 como fallback defensivo)
+    let end = maxBytes;
+    for (let i = 0; i < maxBytes; i += 2) {
+      const low = buffer[offset + i];
+      const high = buffer[offset + i + 1];
+      if ((low === 0xFF && high === 0xFF) || (low === 0x00 && high === 0x00)) {
+        end = i;
+        break;
+      }
+    }
+
+    // Fatia e decodifica
+    const slice = buffer.slice(offset, offset + end);
+    const decoded = utf16Decoder.decode(slice);
+
+    // Remove caracteres de controle invisíveis que possam ter escapado
+    return decoded.replace(/[\u0000-\u001F]/g, '');
+  }
+
+  /**
+   * Versão de debug que mostra os bytes e code points encontrados.
+   * Útil se o OT aparecer estranho e precisarmos investigar.
+   */
+  function decodeStringDebug(buffer, offset, maxBytes) {
+    const codes = [];
+    for (let i = 0; i < maxBytes; i += 2) {
+      const low = buffer[offset + i];
+      const high = buffer[offset + i + 1];
+      const code = (high << 8) | low;
+      codes.push('0x' + code.toString(16).padStart(4, '0').toUpperCase());
+      if (code === 0xFFFF || code === 0x0000) break;
+    }
+    return {
+      text: decodeString(buffer, offset, maxBytes),
+      bytes: codes
+    };
+  }
+
+  window.Gen5Decoder = { decodeString, decodeStringDebug };
+})();
+
+// ===== sav-offsets.js =====
+// ============================================
+// Dream Radar Virtual - Save Offsets (Gen 5)
+//
+// Offsets VERIFICADOS contra código-fonte real do PKHeX (SAV5.cs).
+// Fontes:
+//   - github.com/kwsch/PKHeX (oficial)
+//   - github.com/FullLifeGames/Mass-Editor (espelho com código legível)
+//   - github.com/kwsch/pkNX/blob/master/pkNX.Structures/GameVersion.cs (IDs)
+//
+// Tamanho total do save Gen 5: 524288 bytes (0x80000 = 512 KB).
+//
+// IMPORTANTE: Diferente do que documentação antiga sugere, o save B2W2
+// NÃO tem dois "super-blocos" espelhados em 0x00000 e 0x40000.
+// Ele tem UM conjunto de blocos individuais, cada um com seu próprio
+// checksum armazenado DUAS vezes (no próprio bloco + em uma tabela espelho).
+// A identificação de "active slot" em Gen 5 é feita por bloco, não global.
+//
+// Para LEITURA (Sprint 1), isso não importa: lemos direto do offset.
+// Para ESCRITA (sprints futuros), recalcularemos checksums nos dois locais.
+// ============================================
+
+(function () {
+  const SAV_SIZE = 524288; // 0x80000
+
+  // ------------------------------------------
+  // Game Version IDs (byte armazenado em Trainer1 + 0x1F)
+  //
+  // Valores REAIS do PKHeX (pkNX.Structures/GameVersion.cs):
+  //   W  = 20 (0x14)   <-- ATENÇÃO: White vem antes de Black em ID!
+  //   B  = 21 (0x15)
+  //   W2 = 22 (0x16)
+  //   B2 = 23 (0x17)
+  // ------------------------------------------
+  const GAME_VERSION_IDS = {
+    20: { code: 'W',  key: 'game.white',  gen: 5, group: 'BW'   },
+    21: { code: 'B',  key: 'game.black',  gen: 5, group: 'BW'   },
+    22: { code: 'W2', key: 'game.white2', gen: 5, group: 'B2W2' },
+    23: { code: 'B2', key: 'game.black2', gen: 5, group: 'B2W2' }
+  };
+
+  // ------------------------------------------
+  // Language IDs (byte em Trainer1 + 0x1E)
+  //
+  // Padrão Nintendo / Game Freak:
+  //   1 = JPN, 2 = ENG, 3 = FRE, 4 = ITA,
+  //   5 = GER, 6 = reservado (não usado), 7 = SPA, 8 = KOR
+  // ------------------------------------------
+  const LANGUAGE_IDS = {
+    1: { code: 'JPN', key: 'saveLang.1' },
+    2: { code: 'ENG', key: 'saveLang.2' },
+    3: { code: 'FRE', key: 'saveLang.3' },
+    4: { code: 'ITA', key: 'saveLang.4' },
+    5: { code: 'GER', key: 'saveLang.5' },
+    7: { code: 'SPA', key: 'saveLang.7' },
+    8: { code: 'KOR', key: 'saveLang.8' }
+  };
+
+  // ------------------------------------------
+  // Offsets verificados do PKHeX SAV5.cs
+  //
+  // Os offsets de Trainer1, OT, TID, SID, Language, Game, Gender, Playtime
+  // são IDÊNTICOS entre BW e B2W2. A única diferença está em Trainer2
+  // (onde fica Money), que muda de jogo pra jogo.
+  // ------------------------------------------
+
+  // Offsets compartilhados entre BW e B2W2
+  const SHARED = {
+    TRAINER1: 0x19400,         // Bloco "Trainer Data"
+
+    // Sub-offsets dentro do bloco Trainer1
+    OT_NAME: 0x04,             // 16 bytes (UTF-16LE, terminador 0xFFFF)
+    OT_NAME_MAX_BYTES: 16,     // 8 chars × 2 bytes
+    TID: 0x14,                 // uint16 LE
+    SID: 0x16,                 // uint16 LE (imediatamente após TID)
+    LANGUAGE: 0x1E,            // 1 byte (1..8, ver LANGUAGE_IDS)
+    GAME_VERSION: 0x1F,        // 1 byte (20..23, ver GAME_VERSION_IDS)
+    GENDER: 0x21,              // 1 byte (0 = M, 1 = F)
+    PLAYTIME_HOURS: 0x24,      // uint16 LE
+    PLAYTIME_MINUTES: 0x26,    // 1 byte
+    PLAYTIME_SECONDS: 0x27,    // 1 byte
+
+    // Tamanhos úteis
+    PKM_STORED_SIZE: 136,      // tamanho de PKM encriptado
+    PKM_PARTY_SIZE: 220,       // tamanho de PKM na party (com stats)
+    BOX_COUNT: 24,
+    BOX_SLOTS: 30,
+
+    // Box data
+    BOX_DATA: 0x400,           // início das 24 caixas
+    BOX_SIZE: 0x1000           // cada caixa ocupa 0x1000 bytes
+  };
+
+  // Offsets específicos de BW
+  const BW = {
+    ...SHARED,
+    TRAINER2: 0x21200          // Money (uint32 LE nos primeiros 4 bytes), Badges, etc.
+  };
+
+  // Offsets específicos de B2W2
+  const B2W2 = {
+    ...SHARED,
+    TRAINER2: 0x21100          // Money fica aqui em B2W2 (offset diferente de BW)
+  };
+
+  // ------------------------------------------
+  // Checksum block table (para validação futura).
+  // Cada entrada: { offset, length, checksumOffset, checksumMirror }
+  //
+  // Formato: CCITT-16 do conteúdo do bloco, armazenado duplicado.
+  //
+  // B2W2 - subset relevante pra Sprint 1 (validação do Trainer Data):
+  // ------------------------------------------
+  const B2W2_CHECKSUM_BLOCKS = [
+    { offset: 0x19400, length: 0x00B0, checksumOffset: 0x194B2, checksumMirror: 0x25F36, name: 'Trainer Data' }
+    // Mais blocos serão adicionados em sprints futuros para validação completa
+  ];
+
+  const BW_CHECKSUM_BLOCKS = [
+    { offset: 0x19400, length: 0x0068, checksumOffset: 0x1946A, checksumMirror: 0x23F36, name: 'Trainer Data' }
+  ];
+
+  window.SavOffsets = {
+    SAV_SIZE,
+    GAME_VERSION_IDS,
+    LANGUAGE_IDS,
+    BW,
+    B2W2,
+    B2W2_CHECKSUM_BLOCKS,
+    BW_CHECKSUM_BLOCKS
+  };
+})();
+
+// ===== sav-parser.js =====
+// ============================================
+// Dream Radar Virtual - Save Parser (Gen 5)
+//
+// Sprint 1: APENAS LEITURA.
+// Detecta BW vs B2W2, lê dados do Trainer Data block e retorna objeto limpo.
+//
+// API:
+//   const result = window.SavParser.parseSave(uint8Array);
+//   if (result.success) {
+//     console.log(result.data);  // dados do treinador
+//   } else {
+//     console.error(result.error);  // chave de tradução do erro
+//   }
+// ============================================
+
+(function () {
+  const { SAV_SIZE, GAME_VERSION_IDS, LANGUAGE_IDS, BW, B2W2 } = window.SavOffsets;
+
+  // ------------------------------------------
+  // Helpers de leitura little-endian
+  // ------------------------------------------
+  function readU16LE(buf, off) {
+    return buf[off] | (buf[off + 1] << 8);
+  }
+
+  function readU32LE(buf, off) {
+    return (
+      buf[off] |
+      (buf[off + 1] << 8) |
+      (buf[off + 2] << 16) |
+      (buf[off + 3] << 24)
+    ) >>> 0;
+  }
+
+  // ------------------------------------------
+  // 1. Valida tamanho do arquivo
+  // ------------------------------------------
+  function validateSize(buffer) {
+    if (!buffer) return { ok: false, error: 'error.invalidFile' };
+    if (buffer.length !== SAV_SIZE) {
+      return { ok: false, error: 'error.wrongSize' };
+    }
+    return { ok: true };
+  }
+
+  // ------------------------------------------
+  // 2. Detecta versão do jogo
+  //
+  // Lê o byte GAME_VERSION no Trainer Data e valida contra tabela conhecida.
+  // Se não bater, provavelmente não é save Gen 5 — rejeita.
+  // ------------------------------------------
+  function detectGameVersion(buffer) {
+    // Offset absoluto do byte de versão
+    const versionOffset = BW.TRAINER1 + BW.GAME_VERSION;
+    const rawVersion = buffer[versionOffset];
+
+    const info = GAME_VERSION_IDS[rawVersion];
+    if (!info) {
+      return { ok: false };
+    }
+
+    return {
+      ok: true,
+      rawVersion,
+      info,
+      isB2W2: info.group === 'B2W2',
+      isBW: info.group === 'BW'
+    };
+  }
+
+  // ------------------------------------------
+  // 3. Parser principal
+  // ------------------------------------------
+  function parseSave(buffer) {
+    // Passo 1: tamanho
+    const sizeCheck = validateSize(buffer);
+    if (!sizeCheck.ok) {
+      return { success: false, error: sizeCheck.error };
+    }
+
+    // Passo 2: versão
+    const versionCheck = detectGameVersion(buffer);
+    if (!versionCheck.ok) {
+      return { success: false, error: 'error.notGen5' };
+    }
+
+    // Passo 3: escolhe tabela de offsets
+    const OFF = versionCheck.isB2W2 ? B2W2 : BW;
+
+    // Passo 4: leitura do Trainer Data
+    const t1 = OFF.TRAINER1;
+
+    const otName = window.Gen5Decoder.decodeString(
+      buffer,
+      t1 + OFF.OT_NAME,
+      OFF.OT_NAME_MAX_BYTES
+    );
+
+    const tid = readU16LE(buffer, t1 + OFF.TID);
+    const sid = readU16LE(buffer, t1 + OFF.SID);
+    const language = buffer[t1 + OFF.LANGUAGE];
+    const gameVersion = buffer[t1 + OFF.GAME_VERSION];
+    const gender = buffer[t1 + OFF.GENDER];
+
+    // Playtime
+    const playHours = readU16LE(buffer, t1 + OFF.PLAYTIME_HOURS);
+    const playMinutes = buffer[t1 + OFF.PLAYTIME_MINUTES];
+    const playSeconds = buffer[t1 + OFF.PLAYTIME_SECONDS];
+
+    // Money (fica em Trainer2, offset diferente por jogo)
+    const money = readU32LE(buffer, OFF.TRAINER2);
+
+    // Monta objeto de resultado
+    const versionInfo = versionCheck.info;
+    const languageInfo = LANGUAGE_IDS[language] || null;
+
+    return {
+      success: true,
+      data: {
+        // Jogo
+        gameVersionRaw: gameVersion,
+        gameCode: versionInfo.code,           // 'B2', 'W2', 'B', 'W'
+        gameKey: versionInfo.key,             // chave i18n
+        gameGroup: versionInfo.group,         // 'BW' ou 'B2W2'
+        isB2W2: versionCheck.isB2W2,
+        isBW: versionCheck.isBW,
+
+        // Treinador
+        otName: otName || '—',
+        tid,
+        sid,
+        gender,                                // 0 = M, 1 = F
+        language,                              // ID numérico
+        languageCode: languageInfo?.code ?? 'UNK',
+        languageKey: languageInfo?.key ?? 'saveLang.unknown',
+
+        // Playtime
+        playtime: {
+          hours: playHours,
+          minutes: playMinutes,
+          seconds: playSeconds
+        },
+
+        // Dinheiro
+        money,
+
+        // Meta
+        bufferSize: buffer.length
+      }
+    };
+  }
+
+  // ------------------------------------------
+  // Helpers de formatação pra UI
+  // ------------------------------------------
+  function formatPlaytime(p) {
+    if (!p) return '--:--';
+    const h = String(p.hours).padStart(2, '0');
+    const m = String(p.minutes).padStart(2, '0');
+    return `${h}h ${m}m`;
+  }
+
+  function formatMoney(money) {
+    // Formato com separador de milhares, independente de locale
+    return money.toLocaleString('en-US');
+  }
+
+  function formatTID(tid) {
+    return String(tid).padStart(5, '0');
+  }
+
+  window.SavParser = {
+    parseSave,
+    formatPlaytime,
+    formatMoney,
+    formatTID,
+    // expostos pra uso em outros módulos futuros
+    readU16LE,
+    readU32LE
+  };
+})();
+
+  </script>
+
+  <!-- ============================================================ -->
+  <!-- Componentes React (JSX, processados pelo Babel)               -->
+  <!-- ============================================================ -->
+  <script type="text/babel">
+// ===== LanguageSelector.jsx =====
+// ============================================
+// LanguageSelector - botão PT-BR / EN
+// ============================================
+
+function LanguageSelector() {
+  const { t, setLocale, locale } = useT();
+
+  return (
+    <div className="language-selector" role="group" aria-label="Language">
+      {window.i18n.SUPPORTED.map((lang) => (
+        <button
+          key={lang}
+          className={locale === lang ? 'active' : ''}
+          onClick={() => setLocale(lang)}
+          aria-pressed={locale === lang}
+          type="button"
+        >
+          {lang === 'pt-BR' ? t('lang.pt') : t('lang.en')}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+
+// ===== UploadScreen.jsx =====
+// ============================================
+// UploadScreen - tela inicial de upload do .sav
+// ============================================
+
+function UploadScreen({ onSaveLoaded }) {
+  const { t } = useT();
+  const [error, setError] = React.useState(null);
+  const [isDragging, setIsDragging] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const fileInputRef = React.useRef(null);
+
+  const handleFile = React.useCallback((file) => {
+    setError(null);
+
+    if (!file) {
+      setError(t('error.invalidFile'));
+      return;
+    }
+
+    setIsLoading(true);
+    const reader = new FileReader();
+
+    reader.onerror = () => {
+      setIsLoading(false);
+      setError(t('error.parseError'));
+    };
+
+    reader.onload = (e) => {
+      try {
+        const buffer = new Uint8Array(e.target.result);
+        const result = window.SavParser.parseSave(buffer);
+
+        setIsLoading(false);
+
+        if (!result.success) {
+          setError(t(result.error));
+          return;
+        }
+
+        onSaveLoaded({
+          buffer,
+          fileName: file.name,
+          data: result.data
+        });
+      } catch (err) {
+        console.error('[UploadScreen] Parse error:', err);
+        setIsLoading(false);
+        setError(t('error.parseError'));
+      }
+    };
+
+    reader.readAsArrayBuffer(file);
+  }, [t, onSaveLoaded]);
+
+  const handleFileInputChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) handleFile(file);
+    // Reset do input pra permitir re-upload do mesmo arquivo
+    e.target.value = '';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  };
+
+  const handleClick = () => {
+    if (fileInputRef.current) fileInputRef.current.click();
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+  };
+
+  return (
+    <div className="upload-screen">
+      <div className="upload-hero">
+        <h2>{t('upload.title')}</h2>
+        <p>{t('upload.subtitle')}</p>
+      </div>
+
+      <div
+        className={'upload-dropzone' + (isDragging ? ' drag-over' : '') + (isLoading ? ' loading' : '')}
+        onClick={handleClick}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onKeyDown={handleKeyDown}
+        role="button"
+        tabIndex={0}
+        aria-label={t('upload.dropzone')}
+      >
+        <div className="upload-icon">{isLoading ? '⏳' : '⬆'}</div>
+        <div className="upload-text">
+          {t('upload.dropzone')}
+          <span className="hint">{t('upload.hint')}</span>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".sav,.dsv,application/octet-stream"
+          onChange={handleFileInputChange}
+          style={{ display: 'none' }}
+        />
+      </div>
+
+      {error && (
+        <div className="error-message" role="alert">
+          <span>⚠</span>
+          <span>{error}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// ===== TrainerInfo.jsx =====
+// ============================================
+// TrainerInfo - painel com dados do treinador pós-upload
+// ============================================
+
+function TrainerInfo({ saveInfo, onReset }) {
+  const { t } = useT();
+  const { data } = saveInfo;
+
+  const genderKey = data.gender === 0 ? 'trainer.gender.male' : 'trainer.gender.female';
+
+  // Se o save é BW (não B2W2), mostrar aviso
+  const showBwWarning = data.isBW;
+
+  return (
+    <div>
+      <div className="trainer-panel">
+        <div className="trainer-panel-header">
+          <span className="status-icon">✓</span>
+          <h3>{t('trainer.loaded')}</h3>
+        </div>
+
+        <div className="trainer-data-grid">
+          <div className="trainer-data-item">
+            <span className="label">{t('trainer.game')}</span>
+            <span className="value highlight">{t(data.gameKey)}</span>
+          </div>
+
+          <div className="trainer-data-item">
+            <span className="label">{t('trainer.ot')}</span>
+            <span className="value highlight">{data.otName}</span>
+          </div>
+
+          <div className="trainer-data-item">
+            <span className="label">{t('trainer.tid')}</span>
+            <span className="value">{window.SavParser.formatTID(data.tid)}</span>
+          </div>
+
+          <div className="trainer-data-item">
+            <span className="label">{t('trainer.sid')}</span>
+            <span className="value">{window.SavParser.formatTID(data.sid)}</span>
+          </div>
+
+          <div className="trainer-data-item">
+            <span className="label">{t('trainer.language')}</span>
+            <span className="value">{t(data.languageKey)}</span>
+          </div>
+
+          <div className="trainer-data-item">
+            <span className="label">{t('trainer.gender')}</span>
+            <span className="value">{t(genderKey)}</span>
+          </div>
+
+          <div className="trainer-data-item">
+            <span className="label">{t('trainer.playtime')}</span>
+            <span className="value">{window.SavParser.formatPlaytime(data.playtime)}</span>
+          </div>
+
+          <div className="trainer-data-item">
+            <span className="label">{t('trainer.money')}</span>
+            <span className="value">₽{window.SavParser.formatMoney(data.money)}</span>
+          </div>
+        </div>
+
+        <div className="trainer-panel-footer">
+          <span className="trainer-info-note">{t('trainer.note')}</span>
+          <button className="btn btn-ghost" onClick={onReset} type="button">
+            {t('trainer.changeFile')}
+          </button>
+        </div>
+      </div>
+
+      {showBwWarning && (
+        <div className="warning-message" role="alert">
+          {t('warning.bwDetected')}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// ===== App.jsx =====
+// ============================================
+// App - componente raiz
+// ============================================
+
+function App() {
+  const { t } = useT();
+  const [saveInfo, setSaveInfo] = React.useState(null);
+
+  const handleSaveLoaded = React.useCallback((info) => {
+    setSaveInfo(info);
+  }, []);
+
+  const handleReset = React.useCallback(() => {
+    setSaveInfo(null);
+  }, []);
+
+  return (
+    <div className="app-container">
+      <header className="app-header">
+        <h1 className="app-title">
+          Dream <span className="accent">Radar</span>
+        </h1>
+        <LanguageSelector />
+      </header>
+
+      <main>
+        {!saveInfo ? (
+          <UploadScreen onSaveLoaded={handleSaveLoaded} />
+        ) : (
+          <TrainerInfo saveInfo={saveInfo} onReset={handleReset} />
+        )}
+      </main>
+
+      <footer className="app-footer">
+        {t('app.footer')}
+      </footer>
+    </div>
+  );
+}
+
+
+// ===== Bootstrap =====
+(function() {
+  const render = () => {
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', render);
+  } else {
+    render();
+  }
+})();
+  </script>
+</body>
+</html>
